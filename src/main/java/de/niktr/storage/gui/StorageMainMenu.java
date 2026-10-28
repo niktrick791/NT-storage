@@ -29,7 +29,7 @@ public class StorageMainMenu extends Menu<Plugin> {
 
     @Override
     public String title() {
-        return "§3niktrick • Drahtloses Lager";
+        return manager.isDe() ? "§3niktrick • Drahtloses Lager" : "§3niktrick • Wireless Storage";
     }
 
     @Override
@@ -41,6 +41,7 @@ public class StorageMainMenu extends Menu<Plugin> {
     protected void build() {
         buildFrame();
 
+        boolean de = manager.isDe();
         long sorted = manager.getTotalItemsSorted();
         int totalHoppers = manager.getHoppers().size();
         int playerHoppers = manager.getPlayerHoppers(player.getUniqueId()).size();
@@ -53,8 +54,8 @@ public class StorageMainMenu extends Menu<Plugin> {
 
         // Slot 4: Header Overview
         set(4, new ItemBuilder(Material.NETHER_STAR)
-                .name("§b§lDrahtloses Lagersystem")
-                .lore(Arrays.asList(
+                .name(de ? "§b§lDrahtloses Lagersystem" : "§b§lWireless Storage System")
+                .lore(de ? Arrays.asList(
                         "§7Verbinde Kisten komplett ohne Trichter-Leitungen!",
                         "",
                         "§eStatus: " + (manager.isEnabled() ? "§a§lONLINE" : "§c§lPAUSIERT"),
@@ -63,6 +64,15 @@ public class StorageMainMenu extends Menu<Plugin> {
                         "§eGesamt aktiv: §f" + totalHoppers + " §7(" + inputs + " In / " + outputs + " Out / " + fallbacks + " Rest)",
                         "",
                         "§8» Wähle unten eine Option aus"
+                ) : Arrays.asList(
+                        "§7Connect chests without any hopper pipe lines!",
+                        "",
+                        "§eStatus: " + (manager.isEnabled() ? "§a§lONLINE" : "§c§lPAUSED"),
+                        "§eSorted Items: §f" + sorted,
+                        "§eYour Hoppers: §6" + playerHoppers,
+                        "§eTotal Active: §f" + totalHoppers + " §7(" + inputs + " In / " + outputs + " Out / " + fallbacks + " Fallback)",
+                        "",
+                        "§8» Select an option below"
                 ))
                 .glow(true)
                 .build(), new ClickAction() {
@@ -74,14 +84,21 @@ public class StorageMainMenu extends Menu<Plugin> {
 
         // Slot 11: Meine Trichter verwalten
         set(11, new ItemBuilder(Material.HOPPER)
-                .name("§e§lMeine Wireless-Trichter")
-                .lore(Arrays.asList(
+                .name(de ? "§e§lMeine Wireless-Trichter" : "§e§lMy Wireless Hoppers")
+                .lore(de ? Arrays.asList(
                         "§7Übersicht aller von dir platzierten",
                         "§7Eingangs- und Ausgangstrichter.",
                         "",
                         "§8• §7Einstellen von: §fModus, Filtern & Kisten",
                         "",
                         "§e▶ Klicke zum Öffnen der Liste"
+                ) : Arrays.asList(
+                        "§7Overview of all your placed input",
+                        "§7and output hoppers.",
+                        "",
+                        "§8• §7Configure: §fModes, filters & chests",
+                        "",
+                        "§e▶ Click to open hopper list"
                 ))
                 .glow(true)
                 .build(), new ClickAction() {
@@ -96,8 +113,8 @@ public class StorageMainMenu extends Menu<Plugin> {
         Material frameMat = Material.matchMaterial("ITEM_FRAME");
         if (frameMat == null) frameMat = Material.PAINTING;
         set(13, new ItemBuilder(frameMat)
-                .name("§a§lFilter-Einstellungen")
-                .lore(Arrays.asList(
+                .name(de ? "§a§lFilter-Einstellungen" : "§a§lFilter Settings")
+                .lore(de ? Arrays.asList(
                         "§7Bestimme, welche Items drahtlos in",
                         "§7welche Kisten transportiert werden.",
                         "",
@@ -105,6 +122,14 @@ public class StorageMainMenu extends Menu<Plugin> {
                         "§8• §eVolle Kisten sperren nicht das System",
                         "",
                         "§e▶ Klicke zum Verwalten deiner Filter"
+                ) : Arrays.asList(
+                        "§7Define which items are sorted wirelessly",
+                        "§7into which designated chests.",
+                        "",
+                        "§8• §aMultiple filters per hopper supported",
+                        "§8• §eFull chests do not block the pipeline",
+                        "",
+                        "§e▶ Click to manage filters"
                 ))
                 .glow(true)
                 .build(), new ClickAction() {
@@ -120,14 +145,21 @@ public class StorageMainMenu extends Menu<Plugin> {
         if (tableMat == null) tableMat = Material.matchMaterial("WORKBENCH");
         if (tableMat == null) tableMat = Material.CHEST;
         set(15, new ItemBuilder(tableMat)
-                .name("§d§lCrafting-Rezepte")
-                .lore(Arrays.asList(
+                .name(de ? "§d§lCrafting-Rezepte" : "§d§lCrafting Recipes")
+                .lore(de ? Arrays.asList(
                         "§7So craftest du die Wireless-Trichter:",
                         "",
                         "§8• §bEnder-Trichter: §f1x Trichter + 1x Enderperle",
                         "§8• §7Funktioniert an jeder Kiste wireless!",
                         "",
                         "§e▶ Klicke für Rezept-Anzeige"
+                ) : Arrays.asList(
+                        "§7How to craft wireless hoppers:",
+                        "",
+                        "§8• §bEnder Hopper: §f1x Hopper + 1x Ender Pearl",
+                        "§8• §7Works on any chest completely wireless!",
+                        "",
+                        "§e▶ Click to view recipe diagram"
                 ))
                 .glow(true)
                 .build(), new ClickAction() {
@@ -140,8 +172,8 @@ public class StorageMainMenu extends Menu<Plugin> {
 
         // Slot 22: Anleitung & Kurzhilfe
         set(22, new ItemBuilder(Material.BOOK)
-                .name("§6§lSo funktioniert's")
-                .lore(Arrays.asList(
+                .name(de ? "§6§lSo funktioniert's" : "§6§lHow It Works")
+                .lore(de ? Arrays.asList(
                         "§71. Crafte einen Trichter mit einer §5Enderperle§7.",
                         "§72. Platziere ihn an deiner Eingangskiste (§bInput§7).",
                         "§73. Platziere Trichter an deinen Zielkisten (§aOutput§7).",
@@ -150,6 +182,15 @@ public class StorageMainMenu extends Menu<Plugin> {
                         "§75. Fertig! Items werden §6völlig kabellos§7 einsortiert.",
                         "",
                         "§7Keine Trichter-Ketten oder Leitungen mehr nötig!"
+                ) : Arrays.asList(
+                        "§71. Craft a hopper with an §5Ender Pearl§7.",
+                        "§72. Attach it to your intake chest (§bInput§7).",
+                        "§73. Attach hoppers to destination chests (§aOutput§7).",
+                        "§74. Right click output hoppers to choose",
+                        "§7   your designated filter items.",
+                        "§75. Done! Items are sorted §6completely wirelessly§7.",
+                        "",
+                        "§7No complex hopper pipes or redstone lines needed!"
                 ))
                 .build(), new ClickAction() {
             @Override
@@ -162,10 +203,15 @@ public class StorageMainMenu extends Menu<Plugin> {
         if (player.isOp() || player.hasPermission("niktrick.storage.admin")) {
             ItemStack toggleItem = manager.isEnabled() ? XStorageVersion.getDye(10, "LIME_DYE") : XStorageVersion.getDye(8, "GRAY_DYE");
             set(31, new ItemBuilder(toggleItem)
-                    .name(manager.isEnabled() ? "§a§lSortiersystem: AKTIV" : "§c§lSortiersystem: PAUSIERT")
-                    .lore(Arrays.asList(
+                    .name(manager.isEnabled()
+                            ? (de ? "§a§lSortiersystem: AKTIV" : "§a§lSorting System: ACTIVE")
+                            : (de ? "§c§lSortiersystem: PAUSIERT" : "§c§lSorting System: PAUSED"))
+                    .lore(de ? Arrays.asList(
                             "§7Klicke, um das automatische",
                             "§7Sortieren global ein- oder auszuschalten."
+                    ) : Arrays.asList(
+                            "§7Click to toggle automatic wireless",
+                            "§7sorting system globally on or off."
                     ))
                     .build(), new ClickAction() {
                 @Override

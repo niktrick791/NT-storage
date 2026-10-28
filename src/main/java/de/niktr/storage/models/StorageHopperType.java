@@ -19,6 +19,17 @@ public enum StorageHopperType {
         return displayName;
     }
 
+    public String getDisplayName(boolean isDe) {
+        if (!isDe) {
+            switch (this) {
+                case INPUT: return "Input Hopper";
+                case OUTPUT: return "Output Hopper";
+                case FALLBACK: return "Fallback Hopper";
+            }
+        }
+        return displayName;
+    }
+
     public String getColor() {
         return color;
     }
@@ -27,7 +38,22 @@ public enum StorageHopperType {
         return description;
     }
 
+    public String getDescription(boolean isDe) {
+        if (!isDe) {
+            switch (this) {
+                case INPUT: return "Pulls items in and forwards them wirelessly";
+                case OUTPUT: return "Receives filtered items wirelessly into target chest";
+                case FALLBACK: return "Receives all items without specific destination";
+            }
+        }
+        return description;
+    }
+
     public String getFormattedName() {
         return color + "§l" + displayName;
+    }
+
+    public String getFormattedName(boolean isDe) {
+        return color + "§l" + getDisplayName(isDe);
     }
 }

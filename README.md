@@ -1,48 +1,90 @@
-# 📦 niktrick-storage — Strict Storage Filters & Wireless Item Sorting
+# niktrick-storage
 
-[![Platform](https://img.shields.io/badge/Platform-Paper%20%7C%20Purpur-brightgreen.svg)](#)
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.21+-blue.svg)](#)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](#)
+[![Language: English](https://img.shields.io/badge/Language-English-blue.svg)](#)
+[![Deutsch](https://img.shields.io/badge/Sprache-Deutsch-orange.svg)](README_DE.md)
+[![Platform: Paper / Purpur / Spigot](https://img.shields.io/badge/Platform-Paper%20%7C%20Purpur%20%7C%20Spigot-green.svg)](#)
+[![Minecraft: 1.8.8 - 1.21.4+](https://img.shields.io/badge/Minecraft-1.8.8--1.21.4%2B-brightgreen.svg)](#)
+[![Java: 8+](https://img.shields.io/badge/Java-8%2B-red.svg)](#)
 
-A standalone Minecraft Paper/Purpur plugin that adds **strict material filters** and an intelligent wireless hopper sorting system to chests, double chests, hoppers, and containers.
-
-It guarantees that only designated items are placed into registered storage chests, preventing wrong items from cluttering your sorting system through shift-clicking, dragging, hotbar swapping, hopper pushes, or copper golem transfers.
+[🇩🇪 Zur deutschen Version wechseln](README_DE.md) | [🇬🇧 English Version](README.md)
 
 ---
 
-## ✨ Features
+Universal, high-efficiency wireless item storage & strict container filtering plugin for Minecraft **1.8.8 to 1.21.4+** (Paper, Purpur, Spigot).
 
+Provides a pipe-free wireless sorting pipeline connecting containers across chunks via Ender Hoppers, with strict item filtering that blocks wrong items from entering designated chests via shift-clicking, dragging, hotbar swapping, or vanilla hopper transfer.
+
+---
+
+## Features
+
+- **📡 Wireless Sorting Pipeline**:
+  - Connect intake chests and destination chests wirelessly without bulky redstone clocks, water channels, or laggy hopper lines.
+  - Automatically transports matching items from Input chests into Output chests, with fallback overflow support.
 - **🔒 Strict Material Filtering**:
-  - Each registered chest only accepts its assigned Minecraft materials.
-  - No accidental insertions: blocks invalid items on Shift-clicks, cursor swaps, drag gestures, hotbar numbers, off-hand swaps, and hopper item movements.
-  - Double-chest recognition: guards both halves automatically and prevents accidental asymmetric double-chest extensions.
-- **📡 Wireless Sorting & Special Hoppers**:
-  - Craftable special hoppers (Input, Storage, Leftover / Overflow) with Ender Pearl recipes.
-  - Automatically transports matching items from input chests into designated storage chests wirelessly.
+  - Guarantees each registered storage chest strictly accepts only its assigned Minecraft items.
+  - Blocks invalid insertions on Shift-clicks, cursor dragging, hotbar number keys, and container hopper transactions.
+  - Double-chest aware: guards both halves automatically.
+- **🛠️ Survival Craftable Wireless Hoppers**:
+  - **Input Hopper**: 1x Hopper + 1x Ender Pearl (draws items into the system).
+  - **Output Hopper**: 1x Hopper + 1x Ender Pearl + 1x Chest (delivers filtered items into target chests).
+  - **Fallback Hopper**: 1x Hopper + 1x Ender Pearl + 1x Redstone (receives unassigned overflow items).
 - **🖥️ In-Game Interactive GUI**:
-  - `/storage menu` or `/storage info` opens interactive chest management, filter configuration, and hopper inspection.
-- **⚡ High Performance & Hardened**:
-  - Validated with over 120 automated test assertions across all Minecraft container events.
+  - `/storage gui` (or `/lager gui`) opens a full graphical management menu to inspect hoppers, configure item filters, view crafting recipes, and monitor sorting metrics.
+- **🌐 Bilingual & Live Language Switching**:
+  - Fully supports English and German.
+  - Switch anytime live via `/storage lang <de|en>` or `/lager lang <de|en>` and in `config.yml`.
+- **💾 Async Persistence & Lightweight Performance**:
+  - Data persists automatically to YAML with zero chunk lag.
 
 ---
 
-## 📜 Commands & Permissions
+## Commands & Permissions
 
-| Command | Permission | Description |
-|---|---|---|
-| `/storage info` | `niktrick.storage.use` | Displays mapped materials for the target chest |
-| `/storage register` | `niktrick.storage.use` | Registers target chest in the storage system |
-| `/storage map <Material>` | `niktrick.storage.use` | Maps a material to the target chest |
-| `/storage unmap <Material>` | `niktrick.storage.use` | Removes a material mapping from the chest |
-| `/storage menu` | `niktrick.storage.use` | Opens the storage GUI menu |
-| `/storage reload` | `niktrick.storage.admin` | Reloads `config.yml` and `storage.yml` |
+| Command | Description | Permission |
+| :--- | :--- | :--- |
+| `/storage gui` | Opens the main wireless storage GUI | *None* |
+| `/storage recipe` | Displays the crafting recipe for wireless hoppers | *None* |
+| `/storage status` | Displays real-time sorting statistics | *None* |
+| `/storage list` | Lists all your registered chests and hoppers | *None* |
+| `/storage givehopper <player> [type]` | Gives a player wireless hoppers | `niktrick.storage.admin` |
+| `/storage input` | Registers targeted chest as an input chest | `niktrick.storage.admin` |
+| `/storage register` | Registers targeted chest as a storage chest | `niktrick.storage.admin` |
+| `/storage unregister` | Removes targeted chest from the system | `niktrick.storage.admin` |
+| `/storage map <MATERIAL>` | Assigns a material filter to targeted chest | `niktrick.storage.admin` |
+| `/storage unmap <MATERIAL>` | Removes a material filter from targeted chest | `niktrick.storage.admin` |
+| `/storage fallback` | Sets targeted chest as the overflow fallback chest | `niktrick.storage.admin` |
+| `/storage reload` | Reloads `config.yml` and storage data | `niktrick.storage.admin` |
+| `/storage lang <de\|en>` | Changes plugin language live (Global) | `niktrick.storage.admin` |
 
-*(All commands also work via the `/lager` alias)*
+*(All commands also support the `/lager` alias).*
 
 ---
 
-## 📦 Installation
+## Configuration (`config.yml`)
 
-1. Drop `niktrick-storage-1.0.0.jar` into your server's `plugins/` folder.
-2. Restart your server.
-3. Target a chest and run `/storage register` and `/storage map DIAMOND`!
+```yaml
+# Language setting: "en" for English, "de" for German
+language: "en"
+
+enabled: true
+
+sorting:
+  scan-interval-ticks: 10
+  max-items-per-cycle: 128
+
+storage:
+  load-chunks: false
+
+effects:
+  particles: true
+  sounds: true
+```
+
+---
+
+## Compatibility
+
+- **Minecraft**: 1.8.8, 1.12.2, 1.16.5, 1.17, 1.18, 1.19, 1.20, 1.21.x+
+- **Server Software**: Paper, Purpur, Spigot
+- **Java**: 8 to 25+ (compiled to Java 8 bytecode for maximum compatibility)

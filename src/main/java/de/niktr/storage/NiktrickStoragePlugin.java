@@ -29,7 +29,7 @@ public class NiktrickStoragePlugin extends JavaPlugin {
         StrictStorageFilter.install(this, this.storageManager);
 
         // Register custom wireless hopper recipes
-        StorageHopperItem.registerRecipes(this);
+        StorageHopperItem.registerRecipes(this, this.storageManager.isDe());
 
         // Register listeners
         getServer().getPluginManager().registerEvents(new StorageHopperListener(this, this.storageManager), this);

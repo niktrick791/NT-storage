@@ -43,6 +43,7 @@ public class StorageManager {
     private final AtomicLong totalItemsSorted = new AtomicLong(0);
 
     // Config options
+    private String language = "en";
     private boolean enabled = true;
     private int scanIntervalTicks = 10;
     private int maxItemsPerCycle = 128;
@@ -71,12 +72,32 @@ public class StorageManager {
 
     public void loadConfig() {
         FileConfiguration cfg = plugin.getConfig();
+        this.language = cfg.getString("language", "en").toLowerCase(Locale.ROOT);
+        if (!"de".equals(language) && !"en".equals(language)) {
+            this.language = "en";
+        }
         this.enabled = cfg.getBoolean("enabled", true);
         this.scanIntervalTicks = Math.max(2, cfg.getInt("sorting.scan-interval-ticks", 10));
         this.maxItemsPerCycle = Math.max(1, cfg.getInt("sorting.max-items-per-cycle", 128));
         this.loadChunks = cfg.getBoolean("storage.load-chunks", false);
         this.particlesEnabled = cfg.getBoolean("effects.particles", true);
         this.soundsEnabled = cfg.getBoolean("effects.sounds", true);
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String lang) {
+        String clean = (lang != null && lang.equalsIgnoreCase("de")) ? "de" : "en";
+        this.language = clean;
+        plugin.getConfig().set("language", clean);
+        plugin.saveConfig();
+        StorageHopperItem.registerRecipes(plugin, isDe());
+    }
+
+    public boolean isDe() {
+        return "de".equalsIgnoreCase(language);
     }
 
     public void startSortingTask() {
