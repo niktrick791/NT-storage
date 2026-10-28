@@ -6,10 +6,8 @@ import de.niktr.storage.managers.StorageManager;
 import de.niktr.storage.models.ChestRef;
 import de.niktr.storage.models.StorageHopper;
 import de.niktr.storage.models.StorageHopperType;
-import net.kyori.adventure.text.Component;
+import de.niktr.storage.util.XStorageVersion;
 import org.bukkit.Material;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -19,10 +17,10 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
+import java.lang.reflect.Method;
 import java.util.UUID;
 
 public class StorageHopperListener implements Listener {
@@ -59,16 +57,16 @@ public class StorageHopperListener implements Listener {
         manager.addHopper(hopper);
 
         // Visual & audio feedback
-        placed.getWorld().spawnParticle(Particle.PORTAL, placed.getLocation().add(0.5, 0.5, 0.5), 15, 0.3, 0.3, 0.3, 0.1);
-        placed.getWorld().playSound(placed.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.7f, 1.2f);
+        XStorageVersion.spawnPortalParticle(placed.getLocation().add(0.5, 0.5, 0.5), 15);
+        XStorageVersion.playTeleport(placed.getLocation());
 
-        player.sendMessage(Component.text("§6[BorderMC-Lager] " + type.getFormattedName() + " §aerfolgreich platziert!"));
+        player.sendMessage("§6[niktrick-storage] " + type.getFormattedName() + " §aerfolgreich platziert!");
         if (attachedChest != null) {
-            player.sendMessage(Component.text("§7Verbundene Kiste erkannt: §f" + attachedChest.display()));
+            player.sendMessage("§7Verbundene Kiste erkannt: §f" + attachedChest.display());
         } else {
-            player.sendMessage(Component.text("§eHinweis: Keine Kiste direkt anliegend. Items im Trichter werden genutzt."));
+            player.sendMessage("§eHinweis: Keine Kiste direkt anliegend. Items im Trichter werden genutzt.");
         }
-        player.sendMessage(Component.text("§6Tipp: §eRechtsklick auf den Trichter öffnet das Konfigurationsmenü!"));
+        player.sendMessage("§6Tipp: §eRechtsklick auf den Trichter öffnet das Konfigurationsmenü!");
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -86,15 +84,21 @@ public class StorageHopperListener implements Listener {
         ItemStack customDrop = StorageHopperItem.createHopper(hopper.getType(), 1);
         block.getWorld().dropItemNaturally(block.getLocation(), customDrop);
 
-        block.getWorld().spawnParticle(Particle.PORTAL, block.getLocation().add(0.5, 0.5, 0.5), 8, 0.2, 0.2, 0.2, 0.05);
-        block.getWorld().playSound(block.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_BREAK, 0.7f, 1.2f);
+        XStorageVersion.spawnPortalParticle(block.getLocation().add(0.5, 0.5, 0.5), 8);
+        XStorageVersion.playBreak(block.getLocation());
 
-        event.getPlayer().sendMessage(Component.text("§6[BorderMC-Lager] §eDrahtloser Trichter abgebaut!"));
+        event.getPlayer().sendMessage("§6[niktrick-storage] §eDrahtloser Trichter abgebaut!");
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND) return;
+        // Safe main hand check on 1.9+
+        try {
+            Method getHand = event.getClass().getMethod("getHand");
+            Object hand = getHand.invoke(event);
+            if (hand != null && !"HAND".equals(hand.toString())) return;
+        } catch (Throwable ignored) {}
+
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
 
         Block clicked = event.getClickedBlock();
@@ -106,9 +110,8 @@ public class StorageHopperListener implements Listener {
 
         Player player = event.getPlayer();
 
-        // If player is sneaking and holding a block/hopper, let vanilla place if possible, otherwise open GUI
         event.setCancelled(true);
-        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
+        XStorageVersion.playClick(player);
         new HopperConfigMenu(plugin, player, manager, hopper, null).open();
     }
 }

@@ -2,13 +2,17 @@ package de.niktr.storage.managers;
 
 import de.niktr.storage.filter.StrictStorageFilter;
 import de.niktr.storage.models.*;
-import org.bukkit.*;
+import de.niktr.storage.util.XStorageVersion;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
-import org.bukkit.block.data.type.Hopper;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -19,6 +23,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -28,8 +33,8 @@ public class StorageManager {
     private final Plugin plugin;
     private final File dataFile;
 
-    private final Map<ChestRef, StorageHopper> hoppers = new ConcurrentHashMap<>();
-    private final Map<ChestRef, StorageChest> storages = new ConcurrentHashMap<>();
+    private final Map<ChestRef, StorageHopper> hoppers = new ConcurrentHashMap<ChestRef, StorageHopper>();
+    private final Map<ChestRef, StorageChest> storages = new ConcurrentHashMap<ChestRef, StorageChest>();
     private final Set<ChestRef> inputs = ConcurrentHashMap.newKeySet();
     private ChestRef fallback;
 
@@ -65,7 +70,7 @@ public class StorageManager {
     }
 
     public void loadConfig() {
-        var cfg = plugin.getConfig();
+        FileConfiguration cfg = plugin.getConfig();
         this.enabled = cfg.getBoolean("enabled", true);
         this.scanIntervalTicks = Math.max(2, cfg.getInt("sorting.scan-interval-ticks", 10));
         this.maxItemsPerCycle = Math.max(1, cfg.getInt("sorting.max-items-per-cycle", 128));
@@ -81,11 +86,14 @@ public class StorageManager {
         }
         if (!enabled) return;
 
-        sortingTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            try {
-                processSortingCycle(maxItemsPerCycle);
-            } catch (Throwable t) {
-                plugin.getLogger().warning("Fehler im Sortierzyklus: " + t.getMessage());
+        sortingTask = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    processSortingCycle(maxItemsPerCycle);
+                } catch (Throwable t) {
+                    plugin.getLogger().warning("Fehler im Sortierzyklus: " + t.getMessage());
+                }
             }
         }, scanIntervalTicks, scanIntervalTicks);
     }
@@ -105,7 +113,7 @@ public class StorageManager {
         }
 
         // 2. Process legacy input chests
-        for (ChestRef inputRef : List.copyOf(inputs)) {
+        for (ChestRef inputRef : new ArrayList<ChestRef>(inputs)) {
             if (remainingQuota <= 0) break;
             Inventory sourceInv = getInventoryAt(inputRef);
             if (sourceInv == null) continue;
@@ -126,7 +134,7 @@ public class StorageManager {
 
     private boolean hasAnyItem(Inventory inv) {
         for (ItemStack it : inv.getContents()) {
-            if (it != null && !it.getType().isAir() && it.getAmount() > 0) return true;
+            if (it != null && it.getType() != Material.AIR && it.getAmount() > 0) return true;
         }
         return false;
     }
@@ -138,7 +146,7 @@ public class StorageManager {
         for (int slot = 0; slot < contents.length; slot++) {
             if (moved >= quota) break;
             ItemStack item = contents[slot];
-            if (item == null || item.getType().isAir() || item.getAmount() <= 0) continue;
+            if (item == null || item.getType() == Material.AIR || item.getAmount() <= 0) continue;
 
             int toMove = Math.min(item.getAmount(), quota - moved);
             Material mat = item.getType();
@@ -153,7 +161,7 @@ public class StorageManager {
             HashMap<Integer, ItemStack> leftover = StrictStorageFilter.addChecked(target.inventory(), new ItemStack[]{transferStack}, this);
             int leftoverAmount = 0;
             for (ItemStack left : leftover.values()) {
-                if (left != null && !left.getType().isAir()) leftoverAmount += left.getAmount();
+                if (left != null && left.getType() != Material.AIR) leftoverAmount += left.getAmount();
             }
 
             int successfullyMoved = toMove - leftoverAmount;
@@ -176,11 +184,27 @@ public class StorageManager {
         return moved;
     }
 
-    private record Destination(Inventory inventory, ChestRef ref) {}
+    private static final class Destination {
+        private final Inventory inventory;
+        private final ChestRef ref;
+
+        public Destination(Inventory inventory, ChestRef ref) {
+            this.inventory = inventory;
+            this.ref = ref;
+        }
+
+        public Inventory inventory() {
+            return inventory;
+        }
+
+        public ChestRef ref() {
+            return ref;
+        }
+    }
 
     private Destination findBestDestination(Material material) {
         // Priority 1: Wireless output hoppers matching material
-        List<StorageHopper> matchingHoppers = new ArrayList<>();
+        List<StorageHopper> matchingHoppers = new ArrayList<StorageHopper>();
         for (StorageHopper hopper : hoppers.values()) {
             if (hopper.isEnabled() && hopper.getType() == StorageHopperType.OUTPUT) {
                 if (hopper.getFilterMaterials().contains(material)) {
@@ -190,7 +214,12 @@ public class StorageManager {
         }
 
         // Sort by occupied slots of attached chest
-        matchingHoppers.sort(Comparator.comparingInt(this::getHopperFillLevel));
+        Collections.sort(matchingHoppers, new Comparator<StorageHopper>() {
+            @Override
+            public int compare(StorageHopper o1, StorageHopper o2) {
+                return Integer.compare(getHopperFillLevel(o1), getHopperFillLevel(o2));
+            }
+        });
 
         for (StorageHopper hopper : matchingHoppers) {
             Inventory inv = getTargetInventory(hopper);
@@ -200,13 +229,18 @@ public class StorageManager {
         }
 
         // Priority 2: Legacy mapped storage chests
-        List<StorageChest> matchingChests = new ArrayList<>();
+        List<StorageChest> matchingChests = new ArrayList<StorageChest>();
         for (StorageChest sc : storages.values()) {
             if (sc.getMaterials().contains(material)) {
                 matchingChests.add(sc);
             }
         }
-        matchingChests.sort(Comparator.comparingInt(sc -> getOccupiedSlots(sc.getRef())));
+        Collections.sort(matchingChests, new Comparator<StorageChest>() {
+            @Override
+            public int compare(StorageChest o1, StorageChest o2) {
+                return Integer.compare(getOccupiedSlots(o1.getRef()), getOccupiedSlots(o2.getRef()));
+            }
+        });
 
         for (StorageChest sc : matchingChests) {
             Inventory inv = getInventoryAt(sc.getRef());
@@ -256,7 +290,7 @@ public class StorageManager {
         int free = 0;
         int maxStack = material.getMaxStackSize();
         for (ItemStack it : inv.getContents()) {
-            if (it == null || it.getType().isAir()) {
+            if (it == null || it.getType() == Material.AIR) {
                 free += maxStack;
             } else if (it.getType() == material) {
                 free += Math.max(0, maxStack - it.getAmount());
@@ -270,7 +304,7 @@ public class StorageManager {
         if (inv == null) return Integer.MAX_VALUE;
         int occupied = 0;
         for (ItemStack it : inv.getContents()) {
-            if (it != null && !it.getType().isAir() && it.getAmount() > 0) {
+            if (it != null && it.getType() != Material.AIR && it.getAmount() > 0) {
                 occupied++;
             }
         }
@@ -284,7 +318,8 @@ public class StorageManager {
         Block block = ref.block();
         if (block == null) return null;
 
-        if (block.getState() instanceof InventoryHolder holder) {
+        if (block.getState() instanceof InventoryHolder) {
+            InventoryHolder holder = (InventoryHolder) block.getState();
             return holder.getInventory();
         }
         return null;
@@ -293,16 +328,42 @@ public class StorageManager {
     public ChestRef detectAttachedChest(Block hopperBlock) {
         if (hopperBlock == null) return null;
 
-        // 1. Check facing direction of hopper
-        if (hopperBlock.getBlockData() instanceof Hopper hopperData) {
-            BlockFace facing = hopperData.getFacing();
-            Block targetBlock = hopperBlock.getRelative(facing);
-            if (isChestBlock(targetBlock)) {
-                return canonical(targetBlock);
+        // 1. Try modern BlockData facing (1.13+)
+        try {
+            Method getBlockData = Block.class.getMethod("getBlockData");
+            Object bd = getBlockData.invoke(hopperBlock);
+            if (bd != null) {
+                Method getFacing = bd.getClass().getMethod("getFacing");
+                BlockFace facing = (BlockFace) getFacing.invoke(bd);
+                if (facing != null) {
+                    Block targetBlock = hopperBlock.getRelative(facing);
+                    if (isChestBlock(targetBlock)) {
+                        return canonical(targetBlock);
+                    }
+                }
             }
-        }
+        } catch (Throwable ignored) {}
 
-        // 2. Check block behind / adjacent / below / above
+        // 1b. Try legacy byte data facing (1.8 - 1.12)
+        try {
+            Method getData = Block.class.getMethod("getData");
+            byte data = (Byte) getData.invoke(hopperBlock);
+            int facingId = data & 0x7;
+            BlockFace facing = null;
+            if (facingId == 0) facing = BlockFace.DOWN;
+            else if (facingId == 2) facing = BlockFace.NORTH;
+            else if (facingId == 3) facing = BlockFace.SOUTH;
+            else if (facingId == 4) facing = BlockFace.WEST;
+            else if (facingId == 5) facing = BlockFace.EAST;
+            if (facing != null) {
+                Block targetBlock = hopperBlock.getRelative(facing);
+                if (isChestBlock(targetBlock)) {
+                    return canonical(targetBlock);
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        // 2. Check adjacent faces (down, north, south, east, west, up)
         BlockFace[] faces = new BlockFace[]{
                 BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH,
                 BlockFace.EAST, BlockFace.WEST, BlockFace.UP
@@ -317,17 +378,18 @@ public class StorageManager {
     }
 
     public static boolean isChestBlock(Block block) {
-        if (block == null) return false;
-        Material type = block.getType();
-        return type == Material.CHEST || type == Material.TRAPPED_CHEST || type == Material.BARREL;
+        return XStorageVersion.isChestBlock(block);
     }
 
     public ChestRef canonical(Block block) {
         if (block == null) return null;
-        if (block.getState() instanceof Chest chest) {
+        if (block.getState() instanceof Chest) {
+            Chest chest = (Chest) block.getState();
             Inventory inv = chest.getInventory();
-            if (inv.getHolder() instanceof DoubleChest doubleChest) {
-                if (doubleChest.getLeftSide() instanceof Chest left) {
+            if (inv.getHolder() instanceof DoubleChest) {
+                DoubleChest doubleChest = (DoubleChest) inv.getHolder();
+                if (doubleChest.getLeftSide() instanceof Chest) {
+                    Chest left = (Chest) doubleChest.getLeftSide();
                     return ChestRef.from(left.getBlock());
                 }
             }
@@ -345,21 +407,20 @@ public class StorageManager {
         if (fromLoc != null && from.isChunkLoaded()) {
             Location center = fromLoc.clone().add(0.5, 0.6, 0.5);
             if (particlesEnabled) {
-                fromLoc.getWorld().spawnParticle(Particle.PORTAL, center, 8, 0.2, 0.2, 0.2, 0.05);
+                XStorageVersion.spawnPortalParticle(center, 8);
             }
             if (soundsEnabled) {
-                fromLoc.getWorld().playSound(center, Sound.ENTITY_ITEM_PICKUP, 0.3f, 1.8f);
+                XStorageVersion.playPickup(center);
             }
         }
 
         if (toLoc != null && to.isChunkLoaded()) {
             Location center = toLoc.clone().add(0.5, 0.6, 0.5);
             if (particlesEnabled) {
-                toLoc.getWorld().spawnParticle(Particle.REVERSE_PORTAL, center, 8, 0.2, 0.2, 0.2, 0.05);
-                toLoc.getWorld().spawnParticle(Particle.END_ROD, center, 3, 0.1, 0.1, 0.1, 0.02);
+                XStorageVersion.spawnPortalParticle(center, 8);
             }
             if (soundsEnabled) {
-                toLoc.getWorld().playSound(center, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.4f, 1.6f);
+                XStorageVersion.playSound(null, center, "BLOCK_AMETHYST_BLOCK_CHIME", "ORB_PICKUP", 0.4f, 1.6f);
             }
         }
     }
@@ -392,8 +453,8 @@ public class StorageManager {
     }
 
     public List<StorageHopper> getPlayerHoppers(UUID playerId) {
-        if (playerId == null) return List.of();
-        List<StorageHopper> list = new ArrayList<>();
+        if (playerId == null) return Collections.emptyList();
+        List<StorageHopper> list = new ArrayList<StorageHopper>();
         for (StorageHopper h : hoppers.values()) {
             if (playerId.equals(h.getOwner())) {
                 list.add(h);
@@ -403,8 +464,8 @@ public class StorageManager {
     }
 
     public List<StorageHopper> getHoppersAttachedTo(ChestRef chestRef) {
-        if (chestRef == null) return List.of();
-        List<StorageHopper> list = new ArrayList<>();
+        if (chestRef == null) return Collections.emptyList();
+        List<StorageHopper> list = new ArrayList<StorageHopper>();
         for (StorageHopper h : hoppers.values()) {
             if (chestRef.equals(h.getAttachedChestRef()) || chestRef.equals(h.getRef())) {
                 list.add(h);
@@ -638,13 +699,13 @@ public class StorageManager {
                 yaml.set(path + ".owner", hopper.getOwner().toString());
             }
             yaml.set(path + ".enabled", hopper.isEnabled());
-            List<String> mats = new ArrayList<>();
+            List<String> mats = new ArrayList<String>();
             for (Material m : hopper.getFilterMaterials()) mats.add(m.name());
             yaml.set(path + ".materials", mats);
         }
 
         // Save legacy inputs
-        List<Map<String, Object>> inputList = new ArrayList<>();
+        List<Map<String, Object>> inputList = new ArrayList<Map<String, Object>>();
         for (ChestRef ref : inputs) inputList.add(writeRefMap(ref));
         yaml.set("inputs", inputList);
 
@@ -658,7 +719,7 @@ public class StorageManager {
             String path = "storages." + sc.getId();
             yaml.set(path + ".id", sc.getId());
             writeRef(yaml, path + ".ref", sc.getRef());
-            List<String> mats = new ArrayList<>();
+            List<String> mats = new ArrayList<String>();
             for (Material m : sc.getMaterials()) mats.add(m.name());
             yaml.set(path + ".materials", mats);
         }
@@ -680,7 +741,7 @@ public class StorageManager {
     }
 
     private Map<String, Object> writeRefMap(ChestRef ref) {
-        Map<String, Object> map = new HashMap<>();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("world", ref.world());
         map.put("x", ref.x());
         map.put("y", ref.y());
@@ -703,7 +764,11 @@ public class StorageManager {
         Object x = map.get("x");
         Object y = map.get("y");
         Object z = map.get("z");
-        if (w instanceof String world && x instanceof Number nx && y instanceof Number ny && z instanceof Number nz) {
+        if (w instanceof String && x instanceof Number && y instanceof Number && z instanceof Number) {
+            String world = (String) w;
+            Number nx = (Number) x;
+            Number ny = (Number) y;
+            Number nz = (Number) z;
             return new ChestRef(world, nx.intValue(), ny.intValue(), nz.intValue());
         }
         return null;

@@ -1,20 +1,18 @@
 package de.niktr.storage.gui;
 
-import de.niktr.storage.util.Menu;
-import de.niktr.storage.util.ItemBuilder;
 import de.niktr.storage.managers.StorageManager;
 import de.niktr.storage.models.StorageHopper;
 import de.niktr.storage.models.StorageHopperType;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import de.niktr.storage.util.ItemBuilder;
+import de.niktr.storage.util.Menu;
+import de.niktr.storage.util.XStorageVersion;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
 public class StorageMainMenu extends Menu<Plugin> {
 
@@ -30,8 +28,8 @@ public class StorageMainMenu extends Menu<Plugin> {
     }
 
     @Override
-    public Component title() {
-        return Component.text("BorderMC • Drahtloses Lager", NamedTextColor.DARK_AQUA);
+    public String title() {
+        return "§3niktrick • Drahtloses Lager";
     }
 
     @Override
@@ -55,113 +53,144 @@ public class StorageMainMenu extends Menu<Plugin> {
 
         // Slot 4: Header Overview
         set(4, new ItemBuilder(Material.NETHER_STAR)
-                .name(Component.text("§b§lDrahtloses Lagersystem"))
-                .lore(List.of(
-                        Component.text("§7Verbinde Kisten komplett ohne Trichter-Leitungen!"),
-                        Component.empty(),
-                        Component.text("§eStatus: " + (manager.isEnabled() ? "§a§lONLINE" : "§c§lPAUSIERT")),
-                        Component.text("§eSortierte Items: §f" + sorted),
-                        Component.text("§eDeine Trichter: §6" + playerHoppers),
-                        Component.text("§eGesamt aktiv: §f" + totalHoppers + " §7(" + inputs + " In / " + outputs + " Out / " + fallbacks + " Rest)"),
-                        Component.empty(),
-                        Component.text("§8» Wähle unten eine Option aus")
+                .name("§b§lDrahtloses Lagersystem")
+                .lore(Arrays.asList(
+                        "§7Verbinde Kisten komplett ohne Trichter-Leitungen!",
+                        "",
+                        "§eStatus: " + (manager.isEnabled() ? "§a§lONLINE" : "§c§lPAUSIERT"),
+                        "§eSortierte Items: §f" + sorted,
+                        "§eDeine Trichter: §6" + playerHoppers,
+                        "§eGesamt aktiv: §f" + totalHoppers + " §7(" + inputs + " In / " + outputs + " Out / " + fallbacks + " Rest)",
+                        "",
+                        "§8» Wähle unten eine Option aus"
                 ))
                 .glow(true)
-                .build(), event -> player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f));
+                .build(), new ClickAction() {
+            @Override
+            public void execute(InventoryClickEvent event) {
+                XStorageVersion.playClick(player);
+            }
+        });
 
         // Slot 11: Meine Trichter verwalten
         set(11, new ItemBuilder(Material.HOPPER)
-                .name(Component.text("§e§lMeine Wireless-Trichter"))
-                .lore(List.of(
-                        Component.text("§7Übersicht aller von dir platzierten"),
-                        Component.text("§7Eingangs- und Ausgangstrichter."),
-                        Component.empty(),
-                        Component.text("§8• §7Einstellen von: §fModus, Filtern & Kisten"),
-                        Component.empty(),
-                        Component.text("§e▶ Klicke zum Öffnen der Liste")
+                .name("§e§lMeine Wireless-Trichter")
+                .lore(Arrays.asList(
+                        "§7Übersicht aller von dir platzierten",
+                        "§7Eingangs- und Ausgangstrichter.",
+                        "",
+                        "§8• §7Einstellen von: §fModus, Filtern & Kisten",
+                        "",
+                        "§e▶ Klicke zum Öffnen der Liste"
                 ))
                 .glow(true)
-                .build(), event -> {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
-            openLater(new HopperListMenu(plugin, player, manager, this));
+                .build(), new ClickAction() {
+            @Override
+            public void execute(InventoryClickEvent event) {
+                XStorageVersion.playClick(player);
+                openLater(new HopperListMenu(plugin, player, manager, StorageMainMenu.this));
+            }
         });
 
         // Slot 13: Filter & Zuordnungen
-        set(13, new ItemBuilder(Material.ITEM_FRAME)
-                .name(Component.text("§a§lFilter-Einstellungen"))
-                .lore(List.of(
-                        Component.text("§7Bestimme, welche Items drahtlos in"),
-                        Component.text("§7welche Kisten transportiert werden."),
-                        Component.empty(),
-                        Component.text("§8• §aMehrere Filter pro Trichter möglich"),
-                        Component.text("§8• §eVolle Kisten sperren nicht das System"),
-                        Component.empty(),
-                        Component.text("§e▶ Klicke zum Verwalten deiner Filter")
+        Material frameMat = Material.matchMaterial("ITEM_FRAME");
+        if (frameMat == null) frameMat = Material.PAINTING;
+        set(13, new ItemBuilder(frameMat)
+                .name("§a§lFilter-Einstellungen")
+                .lore(Arrays.asList(
+                        "§7Bestimme, welche Items drahtlos in",
+                        "§7welche Kisten transportiert werden.",
+                        "",
+                        "§8• §aMehrere Filter pro Trichter möglich",
+                        "§8• §eVolle Kisten sperren nicht das System",
+                        "",
+                        "§e▶ Klicke zum Verwalten deiner Filter"
                 ))
                 .glow(true)
-                .build(), event -> {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
-            openLater(new HopperListMenu(plugin, player, manager, this));
+                .build(), new ClickAction() {
+            @Override
+            public void execute(InventoryClickEvent event) {
+                XStorageVersion.playClick(player);
+                openLater(new HopperListMenu(plugin, player, manager, StorageMainMenu.this));
+            }
         });
 
         // Slot 15: Crafting-Rezept Guide
-        set(15, new ItemBuilder(Material.CRAFTING_TABLE)
-                .name(Component.text("§d§lCrafting-Rezepte"))
-                .lore(List.of(
-                        Component.text("§7So craftest du die Wireless-Trichter:"),
-                        Component.empty(),
-                        Component.text("§8• §bEnder-Trichter: §f1x Trichter + 1x Enderperle"),
-                        Component.text("§8• §7Funktioniert an jeder Kiste wireless!"),
-                        Component.empty(),
-                        Component.text("§e▶ Klicke für Rezept-Anzeige")
+        Material tableMat = Material.matchMaterial("CRAFTING_TABLE");
+        if (tableMat == null) tableMat = Material.matchMaterial("WORKBENCH");
+        if (tableMat == null) tableMat = Material.CHEST;
+        set(15, new ItemBuilder(tableMat)
+                .name("§d§lCrafting-Rezepte")
+                .lore(Arrays.asList(
+                        "§7So craftest du die Wireless-Trichter:",
+                        "",
+                        "§8• §bEnder-Trichter: §f1x Trichter + 1x Enderperle",
+                        "§8• §7Funktioniert an jeder Kiste wireless!",
+                        "",
+                        "§e▶ Klicke für Rezept-Anzeige"
                 ))
                 .glow(true)
-                .build(), event -> {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
-            openLater(new StorageRecipeMenu(plugin, player, this));
+                .build(), new ClickAction() {
+            @Override
+            public void execute(InventoryClickEvent event) {
+                XStorageVersion.playClick(player);
+                openLater(new StorageRecipeMenu(plugin, player, StorageMainMenu.this));
+            }
         });
 
         // Slot 22: Anleitung & Kurzhilfe
         set(22, new ItemBuilder(Material.BOOK)
-                .name(Component.text("§6§lSo funktioniert's"))
-                .lore(List.of(
-                        Component.text("§71. Crafte einen Trichter mit einer §5Enderperle§7."),
-                        Component.text("§72. Platziere ihn an deiner Eingangskiste (§bInput§7)."),
-                        Component.text("§73. Platziere Trichter an deinen Zielkisten (§aOutput§7)."),
-                        Component.text("§74. Klicke auf den Ausgangstrichter und wähle"),
-                        Component.text("§7   die gewünschten Filter-Items aus."),
-                        Component.text("§75. Fertig! Items werden §6völlig kabellos§7 einsortiert."),
-                        Component.empty(),
-                        Component.text("§7Keine Trichter-Ketten oder Leitungen mehr nötig!")
+                .name("§6§lSo funktioniert's")
+                .lore(Arrays.asList(
+                        "§71. Crafte einen Trichter mit einer §5Enderperle§7.",
+                        "§72. Platziere ihn an deiner Eingangskiste (§bInput§7).",
+                        "§73. Platziere Trichter an deinen Zielkisten (§aOutput§7).",
+                        "§74. Klicke auf den Ausgangstrichter und wähle",
+                        "§7   die gewünschten Filter-Items aus.",
+                        "§75. Fertig! Items werden §6völlig kabellos§7 einsortiert.",
+                        "",
+                        "§7Keine Trichter-Ketten oder Leitungen mehr nötig!"
                 ))
-                .build(), event -> player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f));
+                .build(), new ClickAction() {
+            @Override
+            public void execute(InventoryClickEvent event) {
+                XStorageVersion.playClick(player);
+            }
+        });
 
         // Admin Toggle in Slot 31
-        if (player.isOp() || player.hasPermission("bordermc.admin") || player.hasPermission("NiktrickStorage.admin")) {
-            set(31, new ItemBuilder(manager.isEnabled() ? Material.LIME_DYE : Material.GRAY_DYE)
-                    .name(Component.text(manager.isEnabled() ? "§a§lSortiersystem: AKTIV" : "§c§lSortiersystem: PAUSIERT"))
-                    .lore(List.of(
-                            Component.text("§7Klicke, um das automatische"),
-                            Component.text("§7Sortieren global ein- oder auszuschalten.")
+        if (player.isOp() || player.hasPermission("niktrick.storage.admin")) {
+            ItemStack toggleItem = manager.isEnabled() ? XStorageVersion.getDye(10, "LIME_DYE") : XStorageVersion.getDye(8, "GRAY_DYE");
+            set(31, new ItemBuilder(toggleItem)
+                    .name(manager.isEnabled() ? "§a§lSortiersystem: AKTIV" : "§c§lSortiersystem: PAUSIERT")
+                    .lore(Arrays.asList(
+                            "§7Klicke, um das automatische",
+                            "§7Sortieren global ein- oder auszuschalten."
                     ))
-                    .build(), event -> {
-                manager.setEnabled(!manager.isEnabled());
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f, manager.isEnabled() ? 1.5f : 0.8f);
-                refresh();
+                    .build(), new ClickAction() {
+                @Override
+                public void execute(InventoryClickEvent event) {
+                    manager.setEnabled(!manager.isEnabled());
+                    XStorageVersion.playPling(player, manager.isEnabled() ? 1.5f : 0.8f);
+                    refresh();
+                }
             });
         }
 
         // Slot 40: Back / Close
-        set(40, parent != null ? backItem() : closeItem(), event -> {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
-            back();
+        set(40, parent != null ? backItem() : closeItem(), new ClickAction() {
+            @Override
+            public void execute(InventoryClickEvent event) {
+                XStorageVersion.playClick(player);
+                back();
+            }
         });
 
         fillEmpty();
     }
 
     private void buildFrame() {
-        ItemStack frame = new ItemBuilder(Material.CYAN_STAINED_GLASS_PANE).name(Component.empty()).build();
+        ItemStack frame = new ItemBuilder(XStorageVersion.getGlassPane(9, "CYAN_STAINED_GLASS_PANE")).name(" ").build();
         for (int i = 0; i < 9; i++) {
             if (i != 4) set(i, frame);
             if (i != 4) set(36 + i, frame);

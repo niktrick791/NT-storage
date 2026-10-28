@@ -1,19 +1,19 @@
 package de.niktr.storage.gui;
 
-import de.niktr.storage.util.Menu;
-import de.niktr.storage.util.ItemBuilder;
 import de.niktr.storage.managers.StorageManager;
 import de.niktr.storage.models.StorageHopper;
 import de.niktr.storage.models.StorageHopperType;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import de.niktr.storage.util.ItemBuilder;
+import de.niktr.storage.util.Menu;
+import de.niktr.storage.util.XStorageVersion;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class HopperListMenu extends Menu<Plugin> {
@@ -33,8 +33,8 @@ public class HopperListMenu extends Menu<Plugin> {
     }
 
     @Override
-    public Component title() {
-        return Component.text("BorderMC • Trichter-Liste", NamedTextColor.DARK_AQUA);
+    public String title() {
+        return "§3niktrick • Trichter-Liste";
     }
 
     @Override
@@ -46,8 +46,8 @@ public class HopperListMenu extends Menu<Plugin> {
     protected void build() {
         buildFrame();
 
-        List<StorageHopper> list = new ArrayList<>();
-        boolean isAdmin = player.isOp() || player.hasPermission("bordermc.admin") || player.hasPermission("NiktrickStorage.admin");
+        List<StorageHopper> list = new ArrayList<StorageHopper>();
+        boolean isAdmin = player.isOp() || player.hasPermission("niktrick.storage.admin");
 
         if (isAdmin) {
             list.addAll(manager.getHoppers());
@@ -64,92 +64,108 @@ public class HopperListMenu extends Menu<Plugin> {
         int end = Math.min(start + pageSize, list.size());
 
         for (int i = start; i < end; i++) {
-            StorageHopper hopper = list.get(i);
+            final StorageHopper hopper = list.get(i);
             int slot = SLOTS[i - start];
 
-            Material mat = switch (hopper.getType()) {
-                case INPUT -> Material.CYAN_GLAZED_TERRACOTTA;
-                case OUTPUT -> Material.LIME_GLAZED_TERRACOTTA;
-                case FALLBACK -> Material.YELLOW_GLAZED_TERRACOTTA;
-            };
-
-            List<Component> lore = new ArrayList<>();
-            lore.add(Component.text("§7Position: §f" + hopper.getRef().display()));
-            if (hopper.getAttachedChestRef() != null) {
-                lore.add(Component.text("§7Verbundene Kiste: §a" + hopper.getAttachedChestRef().display()));
+            ItemStack matItem;
+            if (hopper.getType() == StorageHopperType.INPUT) {
+                matItem = XStorageVersion.getGlazedTerracotta(9, "CYAN_GLAZED_TERRACOTTA");
+            } else if (hopper.getType() == StorageHopperType.OUTPUT) {
+                matItem = XStorageVersion.getGlazedTerracotta(5, "LIME_GLAZED_TERRACOTTA");
             } else {
-                lore.add(Component.text("§7Verbundene Kiste: §eKeine (nur Trichter)"));
+                matItem = XStorageVersion.getGlazedTerracotta(4, "YELLOW_GLAZED_TERRACOTTA");
             }
-            lore.add(Component.text("§7Status: " + (hopper.isEnabled() ? "§a§lAKTIV" : "§c§lDEAKTIVIERT")));
+
+            List<String> lore = new ArrayList<String>();
+            lore.add("§7Position: §f" + hopper.getRef().display());
+            if (hopper.getAttachedChestRef() != null) {
+                lore.add("§7Verbundene Kiste: §a" + hopper.getAttachedChestRef().display());
+            } else {
+                lore.add("§7Verbundene Kiste: §eKeine (nur Trichter)");
+            }
+            lore.add("§7Status: " + (hopper.isEnabled() ? "§a§lAKTIV" : "§c§lDEAKTIVIERT"));
 
             if (hopper.getType() == StorageHopperType.OUTPUT) {
-                lore.add(Component.empty());
-                lore.add(Component.text("§6Filter-Items (" + hopper.getFilterMaterials().size() + "):"));
+                lore.add("");
+                lore.add("§6Filter-Items (" + hopper.getFilterMaterials().size() + "):");
                 if (hopper.getFilterMaterials().isEmpty()) {
-                    lore.add(Component.text("§8• §cKeine Items zugewiesen (nimmt nichts an)"));
+                    lore.add("§8• §cKeine Items zugewiesen (nimmt nichts an)");
                 } else {
                     int count = 0;
                     for (Material m : hopper.getFilterMaterials()) {
                         if (count++ >= 5) {
-                            lore.add(Component.text("§8• §7... und " + (hopper.getFilterMaterials().size() - 5) + " weitere"));
+                            lore.add("§8• §7... und " + (hopper.getFilterMaterials().size() - 5) + " weitere");
                             break;
                         }
-                        lore.add(Component.text("§8• §e" + m.name()));
+                        lore.add("§8• §e" + m.name());
                     }
                 }
             }
-            lore.add(Component.empty());
-            lore.add(Component.text("§e▶ Klicke zum Konfigurieren"));
 
-            set(slot, new ItemBuilder(mat)
-                    .name(Component.text(hopper.getType().getFormattedName()))
+            lore.add("");
+            lore.add("§e▶ Klicke zum Konfigurieren");
+
+            set(slot, new ItemBuilder(matItem)
+                    .name(hopper.getType().getFormattedName())
                     .lore(lore)
                     .glow(hopper.isEnabled())
-                    .build(), event -> {
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
-                openLater(new HopperConfigMenu(plugin, player, manager, hopper, this));
+                    .build(), new ClickAction() {
+                @Override
+                public void execute(InventoryClickEvent event) {
+                    XStorageVersion.playClick(player);
+                    openLater(new HopperConfigMenu(plugin, player, manager, hopper, HopperListMenu.this));
+                }
             });
         }
 
         if (list.isEmpty()) {
             set(22, new ItemBuilder(Material.BARRIER)
-                    .name(Component.text("§cKeine Trichter gefunden"))
-                    .lore(List.of(
-                            Component.text("§7Crafte einen Trichter mit einer"),
-                            Component.text("§7Enderperle und platziere ihn!"),
-                            Component.empty(),
-                            Component.text("§7(Rezept: Trichter + Enderperle)")
+                    .name("§cKeine Trichter gefunden")
+                    .lore(Arrays.asList(
+                            "§7Crafte einen Trichter mit einer",
+                            "§7Enderperle und platziere ihn!",
+                            "",
+                            "§7(Rezept: Trichter + Enderperle)"
                     ))
                     .build());
         }
 
         // Pagination buttons
         if (page > 0) {
-            set(38, new ItemBuilder(Material.ARROW).name(Component.text("§e« Vorherige Seite (" + page + "/" + totalPages + ")")).build(), event -> {
-                page--;
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
-                refresh();
+            set(38, new ItemBuilder(Material.ARROW).name("§e« Vorherige Seite (" + page + "/" + totalPages + ")").build(), new ClickAction() {
+                @Override
+                public void execute(InventoryClickEvent event) {
+                    page--;
+                    XStorageVersion.playClick(player);
+                    refresh();
+                }
             });
         }
 
         if (page < totalPages - 1) {
-            set(42, new ItemBuilder(Material.ARROW).name(Component.text("§eNächste Seite (" + (page + 2) + "/" + totalPages + ") »")).build(), event -> {
-                page++;
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
-                refresh();
+            set(42, new ItemBuilder(Material.ARROW).name("§eNächste Seite (" + (page + 2) + "/" + totalPages + ") »").build(), new ClickAction() {
+                @Override
+                public void execute(InventoryClickEvent event) {
+                    page++;
+                    XStorageVersion.playClick(player);
+                    refresh();
+                }
             });
         }
 
-        set(40, backItem(), event -> {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
-            back();
+        set(40, backItem(), new ClickAction() {
+            @Override
+            public void execute(InventoryClickEvent event) {
+                XStorageVersion.playClick(player);
+                back();
+            }
         });
 
         fillEmpty();
     }
 
     private void buildFrame() {
-        ItemStack frame = new ItemBuilder(Material.CYAN_STAINED_GLASS_PANE).name(Component.empty()).build();
+        ItemStack frame = new ItemBuilder(XStorageVersion.getGlassPane(9, "CYAN_STAINED_GLASS_PANE")).name(" ").build();
         for (int i = 0; i < 9; i++) set(i, frame);
         for (int i = 36; i < 45; i++) if (i != 38 && i != 40 && i != 42) set(i, frame);
         for (int row = 1; row < 4; row++) {

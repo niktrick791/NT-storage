@@ -5,6 +5,7 @@ import de.niktr.storage.filter.StrictStorageFilter;
 import de.niktr.storage.listeners.StorageHopperListener;
 import de.niktr.storage.managers.StorageHopperItem;
 import de.niktr.storage.managers.StorageManager;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class NiktrickStoragePlugin extends JavaPlugin {
@@ -35,26 +36,26 @@ public class NiktrickStoragePlugin extends JavaPlugin {
 
         // Register commands (/storage and /lager)
         LagerCommand cmd = new LagerCommand(this, this.storageManager);
-        var command = getCommand("storage");
-        if (command != null) {
-            command.setExecutor(cmd);
-            command.setTabCompleter(cmd);
+        PluginCommand storageCmd = getCommand("storage");
+        if (storageCmd != null) {
+            storageCmd.setExecutor(cmd);
+            storageCmd.setTabCompleter(cmd);
         }
-        var lagerCmd = getCommand("lager");
+        PluginCommand lagerCmd = getCommand("lager");
         if (lagerCmd != null) {
             lagerCmd.setExecutor(cmd);
             lagerCmd.setTabCompleter(cmd);
         }
 
         getLogger().info("=================================================");
-        getLogger().info("niktrick-storage v" + getPluginMeta().getVersion() + " erfolgreich aktiviert!");
+        getLogger().info("niktrick-storage v" + getDescription().getVersion() + " erfolgreich aktiviert!");
         getLogger().info("Strikte Kistenfilter & Drahtloses Lagersystem aktiv.");
         getLogger().info("=================================================");
     }
 
     @Override
     public void onDisable() {
-        StorageHopperItem.unregisterRecipes();
+        StorageHopperItem.unregisterRecipes(this);
 
         if (storageManager != null) {
             storageManager.shutdown();

@@ -1,7 +1,6 @@
 name: niktrick-storage
 version: '${version}'
 main: de.niktr.storage.NiktrickStoragePlugin
-api-version: '1.21'
 author: niktr
 description: Strict storage filters, double-chest protections, and wireless hopper item sorting system.
 

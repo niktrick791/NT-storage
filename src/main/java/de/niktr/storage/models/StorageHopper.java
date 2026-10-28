@@ -1,5 +1,6 @@
 package de.niktr.storage.models;
 
+import de.niktr.storage.util.XStorageVersion;
 import org.bukkit.Material;
 
 import java.util.Collections;
@@ -13,7 +14,7 @@ public class StorageHopper {
     private final ChestRef ref;
     private ChestRef attachedChestRef;
     private StorageHopperType type;
-    private final Set<Material> filterMaterials = new LinkedHashSet<>();
+    private final Set<Material> filterMaterials = new LinkedHashSet<Material>();
     private final UUID owner;
     private boolean enabled;
 
@@ -55,7 +56,7 @@ public class StorageHopper {
     }
 
     public boolean addFilterMaterial(Material material) {
-        if (material == null || !material.isItem() || material.isAir()) return false;
+        if (material == null || !XStorageVersion.isItem(material) || material == Material.AIR) return false;
         return filterMaterials.add(material);
     }
 
@@ -71,7 +72,7 @@ public class StorageHopper {
         filterMaterials.clear();
         if (materials != null) {
             for (Material m : materials) {
-                if (m != null && m.isItem() && !m.isAir()) {
+                if (m != null && XStorageVersion.isItem(m) && m != Material.AIR) {
                     filterMaterials.add(m);
                 }
             }

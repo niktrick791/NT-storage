@@ -1,5 +1,6 @@
 package de.niktr.storage.models;
 
+import de.niktr.storage.util.XStorageVersion;
 import org.bukkit.Material;
 
 import java.util.Collections;
@@ -10,7 +11,7 @@ public class StorageChest {
 
     private final String id;
     private final ChestRef ref;
-    private final Set<Material> materials = new LinkedHashSet<>();
+    private final Set<Material> materials = new LinkedHashSet<Material>();
 
     public StorageChest(String id, ChestRef ref) {
         this.id = id;
@@ -30,7 +31,7 @@ public class StorageChest {
     }
 
     public boolean addMaterial(Material material) {
-        if (material == null || !material.isItem() || material.isAir()) return false;
+        if (material == null || !XStorageVersion.isItem(material) || material == Material.AIR) return false;
         return materials.add(material);
     }
 
@@ -46,7 +47,7 @@ public class StorageChest {
         materials.clear();
         if (set != null) {
             for (Material m : set) {
-                if (m != null && m.isItem() && !m.isAir()) {
+                if (m != null && XStorageVersion.isItem(m) && m != Material.AIR) {
                     materials.add(m);
                 }
             }

@@ -5,31 +5,36 @@ import de.niktr.storage.models.ChestRef;
 import de.niktr.storage.models.StorageChest;
 import de.niktr.storage.models.StorageHopper;
 import de.niktr.storage.models.StorageHopperType;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
 import org.bukkit.entity.HumanEntity;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.*;
-import org.bukkit.event.world.LootGenerateEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
+import java.lang.reflect.Method;
 import java.util.*;
 
 public final class StrictStorageFilter implements Listener {
 
     private final StorageManager manager;
-    private final Map<HumanEntity, Long> lastWarning = new WeakHashMap<>();
+    private final Map<HumanEntity, Long> lastWarning = new WeakHashMap<HumanEntity, Long>();
+
+    private static final Set<String> IGNORED_ACTIONS = new HashSet<String>(Arrays.asList(
+            "NOTHING", "PICKUP_ALL", "PICKUP_SOME", "PICKUP_HALF", "PICKUP_ONE",
+            "PICKUP_FROM_BUNDLE", "PICKUP_ALL_INTO_BUNDLE", "PICKUP_SOME_INTO_BUNDLE",
+            "COLLECT_TO_CURSOR", "CLONE_STACK", "DROP_ALL_SLOT", "DROP_ONE_SLOT",
+            "DROP_ALL_CURSOR", "DROP_ONE_CURSOR"
+    ));
 
     public StrictStorageFilter(StorageManager manager) {
         this.manager = manager;
@@ -37,6 +42,10 @@ public final class StrictStorageFilter implements Listener {
 
     public static void install(Plugin plugin, StorageManager manager) {
         plugin.getServer().getPluginManager().registerEvents(new StrictStorageFilter(manager), plugin);
+        try {
+            Class.forName("org.bukkit.event.world.LootGenerateEvent");
+            plugin.getServer().getPluginManager().registerEvents(new ModernStorageFilterListener(manager), plugin);
+        } catch (Throwable ignored) {}
     }
 
     public enum Decision {
@@ -44,15 +53,16 @@ public final class StrictStorageFilter implements Listener {
     }
 
     public static boolean empty(ItemStack item) {
-        return item == null || item.getAmount() <= 0 || item.getType().isAir();
+        return item == null || item.getAmount() <= 0 || item.getType() == Material.AIR;
     }
 
     public static Set<ChestRef> references(Inventory inventory) {
-        if (inventory == null) return Set.of();
-        Set<ChestRef> refs = new LinkedHashSet<>(2);
+        if (inventory == null) return Collections.emptySet();
+        Set<ChestRef> refs = new LinkedHashSet<ChestRef>(2);
         InventoryHolder holder = inventory.getHolder();
         addHolder(refs, holder);
-        if (holder instanceof Chest chest) {
+        if (holder instanceof Chest) {
+            Chest chest = (Chest) holder;
             Inventory full = chest.getInventory();
             if (full != null) addHolder(refs, full.getHolder());
         }
@@ -60,11 +70,14 @@ public final class StrictStorageFilter implements Listener {
     }
 
     private static void addHolder(Set<ChestRef> refs, InventoryHolder holder) {
-        if (holder instanceof Chest chest) {
+        if (holder instanceof Chest) {
+            Chest chest = (Chest) holder;
             Location l = chest.getLocation();
-            if (l.getWorld() != null)
+            if (l.getWorld() != null) {
                 refs.add(new ChestRef(l.getWorld().getName(), l.getBlockX(), l.getBlockY(), l.getBlockZ()));
-        } else if (holder instanceof DoubleChest doubleChest) {
+            }
+        } else if (holder instanceof DoubleChest) {
+            DoubleChest doubleChest = (DoubleChest) holder;
             addHolder(refs, doubleChest.getLeftSide());
             addHolder(refs, doubleChest.getRightSide());
         }
@@ -129,7 +142,6 @@ public final class StrictStorageFilter implements Listener {
         }
 
         if (isFallback) {
-            // Fallback receives items that have no specific target
             boolean globallyMapped = manager.isGloballyMapped(material);
             if (globallyMapped) return Decision.WRONG_ITEM;
         }
@@ -147,9 +159,9 @@ public final class StrictStorageFilter implements Listener {
     }
 
     public static HashMap<Integer, ItemStack> addChecked(Inventory destination, ItemStack[] items, StorageManager manager) {
-        Objects.requireNonNull(destination, "destination");
-        Objects.requireNonNull(items, "items");
-        HashMap<Integer, ItemStack> leftovers = new HashMap<>();
+        if (destination == null) throw new NullPointerException("destination");
+        if (items == null) throw new NullPointerException("items");
+        HashMap<Integer, ItemStack> leftovers = new HashMap<Integer, ItemStack>();
         for (int i = 0; i < items.length; i++) {
             ItemStack original = items[i];
             if (empty(original)) continue;
@@ -189,10 +201,11 @@ public final class StrictStorageFilter implements Listener {
             incoming = event.getCurrentItem();
         } else if (action.equals("HOTBAR_SWAP") || action.equals("HOTBAR_MOVE_AND_READD")) {
             int key = event.getHotbarButton();
-            if (key >= 0 && key <= 8) incoming = event.getWhoClicked().getInventory().getItem(key);
-            else if (event.getClick() == ClickType.SWAP_OFFHAND)
-                incoming = event.getWhoClicked().getInventory().getItemInOffHand();
-            else if (protectedInventory(manager, destination)) {
+            if (key >= 0 && key <= 8) {
+                incoming = event.getWhoClicked().getInventory().getItem(key);
+            } else if ("SWAP_OFFHAND".equals(event.getClick().name())) {
+                incoming = getOffHandItem(event.getWhoClicked());
+            } else if (protectedInventory(manager, destination)) {
                 reject(event, Decision.WRONG_ITEM);
                 return;
             }
@@ -206,10 +219,7 @@ public final class StrictStorageFilter implements Listener {
                 warn(event.getWhoClicked(), "§cBitte das Item zuerst im Spielerinventar aus dem Bündel nehmen.");
             }
             return;
-        } else if (Set.of("NOTHING", "PICKUP_ALL", "PICKUP_SOME", "PICKUP_HALF", "PICKUP_ONE",
-                "PICKUP_FROM_BUNDLE", "PICKUP_ALL_INTO_BUNDLE", "PICKUP_SOME_INTO_BUNDLE",
-                "COLLECT_TO_CURSOR", "CLONE_STACK", "DROP_ALL_SLOT", "DROP_ONE_SLOT",
-                "DROP_ALL_CURSOR", "DROP_ONE_CURSOR").contains(action)) {
+        } else if (IGNORED_ACTIONS.contains(action)) {
             return;
         } else {
             if (protectedInventory(manager, destination) ||
@@ -220,6 +230,16 @@ public final class StrictStorageFilter implements Listener {
         }
         Decision result = decision(manager, destination, incoming);
         if (result != Decision.ALLOW) reject(event, result);
+    }
+
+    private ItemStack getOffHandItem(HumanEntity entity) {
+        if (entity == null) return null;
+        try {
+            Method m = entity.getInventory().getClass().getMethod("getItemInOffHand");
+            return (ItemStack) m.invoke(entity.getInventory());
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -253,7 +273,8 @@ public final class StrictStorageFilter implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
-        if (event.isCancelled() || !(event.getBlockPlaced().getState() instanceof Chest chest)) return;
+        if (event.isCancelled() || !(event.getBlockPlaced().getState() instanceof Chest)) return;
+        Chest chest = (Chest) event.getBlockPlaced().getState();
         Inventory inventory = chest.getInventory();
         Set<ChestRef> refs = references(inventory);
         Block placed = event.getBlockPlaced();
@@ -278,29 +299,20 @@ public final class StrictStorageFilter implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onLoot(LootGenerateEvent event) {
-        if (event.isCancelled() || event.getInventoryHolder() == null) return;
-        Inventory destination = event.getInventoryHolder().getInventory();
-        for (ItemStack item : event.getLoot()) {
-            if (decision(manager, destination, item) != Decision.ALLOW) {
-                event.setCancelled(true);
-                return;
-            }
-        }
-    }
-
     private void reject(InventoryClickEvent event, Decision decision) {
         event.setCancelled(true);
         warn(event.getWhoClicked(), message(decision));
     }
 
     private static String message(Decision decision) {
-        return switch (decision) {
-            case UNASSIGNED -> "§cDieser Lagerkiste ist noch kein Item zugewiesen. Nutze /lager map <MATERIAL> oder das Trichter-Menü.";
-            case CONFLICT -> "§cDiese Doppelkiste hat widersprüchliche Registrierungen. Bitte die Zuordnung korrigieren.";
-            default -> "§cDieses Item ist für diese Kiste nicht freigegeben.";
-        };
+        switch (decision) {
+            case UNASSIGNED:
+                return "§cDieser Lagerkiste ist noch kein Item zugewiesen. Nutze /lager map <MATERIAL> oder das Trichter-Menü.";
+            case CONFLICT:
+                return "§cDiese Doppelkiste hat widersprüchliche Registrierungen. Bitte die Zuordnung korrigieren.";
+            default:
+                return "§cDieses Item ist für diese Kiste nicht freigegeben.";
+        }
     }
 
     private void warn(HumanEntity player, String text) {
@@ -308,7 +320,7 @@ public final class StrictStorageFilter implements Listener {
         Long previous = lastWarning.get(player);
         if (previous == null || now - previous >= 1_000_000_000L) {
             lastWarning.put(player, now);
-            player.sendMessage(Component.text("§6[Lager] " + text));
+            player.sendMessage("§6[Lager] " + text);
         }
     }
 }
