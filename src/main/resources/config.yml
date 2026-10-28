@@ -1,0 +1,12 @@
+enabled: true
+
+sorting:
+  scan-interval-ticks: 10
+  max-items-per-cycle: 128
+
+storage:
+  load-chunks: false
+
+effects:
+  particles: true
+  sounds: true

@@ -1,0 +1,25 @@
+name: niktrick-storage
+version: '${version}'
+main: de.niktr.storage.NiktrickStoragePlugin
+api-version: '1.21'
+author: niktr
+description: Strict storage filters, double-chest protections, and wireless hopper item sorting system.
+
+commands:
+  storage:
+    description: Verwalte Lagertruhen, Filter und Trichter
+    usage: /storage [info|register|unregister|map|unmap|menu|reload]
+    aliases: [lager, lagersystem, storagesystem]
+    permission: niktrick.storage.use
+  lager:
+    description: Verwalte Lagertruhen, Filter und Trichter
+    usage: /lager [info|register|unregister|map|unmap|menu|reload]
+    permission: niktrick.storage.use
+
+permissions:
+  niktrick.storage.use:
+    description: Erlaubt normale Interaktion mit Lagertruhen und Menüs
+    default: true
+  niktrick.storage.admin:
+    description: Voller administrativer Zugriff auf das Lagersystem
+    default: op
