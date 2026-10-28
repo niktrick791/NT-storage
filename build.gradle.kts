@@ -38,7 +38,7 @@ tasks.processResources {
 }
 
 tasks.jar {
-    archiveBaseName.set("niktrick-storage")
+    archiveBaseName.set("NT-storage")
     archiveClassifier.set("")
     archiveVersion.set("1.0.0")
 }

@@ -1,4 +1,4 @@
-# niktrick-storage
+# NT-storage
 
 [![Sprache: Deutsch](https://img.shields.io/badge/Sprache-Deutsch-orange.svg)](#)
 [![English](https://img.shields.io/badge/Language-English-blue.svg)](README.md)

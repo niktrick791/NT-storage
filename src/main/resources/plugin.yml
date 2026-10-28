@@ -1,4 +1,4 @@
-name: niktrick-storage
+name: NT-storage
 version: '${version}'
 main: de.niktr.storage.NiktrickStoragePlugin
 author: niktr

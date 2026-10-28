@@ -29,7 +29,7 @@ public class StorageMainMenu extends Menu<Plugin> {
 
     @Override
     public String title() {
-        return manager.isDe() ? "§3niktrick • Drahtloses Lager" : "§3niktrick • Wireless Storage";
+        return manager.isDe() ? "§3NT • Drahtloses Lager" : "§3NT • Wireless Storage";
     }
 
     @Override

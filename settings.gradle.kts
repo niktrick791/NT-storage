@@ -1,1 +1,1 @@
-rootProject.name = "niktrick-storage"
+rootProject.name = "NT-storage"

@@ -178,7 +178,7 @@ public class LagerCommand implements CommandExecutor, TabCompleter {
             manager.loadConfig();
             manager.load();
             manager.startSortingTask();
-            msg(sender, isDe() ? "§aniktrick-storage Konfiguration neu geladen!" : "§aniktrick-storage configuration reloaded!");
+            msg(sender, isDe() ? "§aNT-storage Konfiguration neu geladen!" : "§aNT-storage configuration reloaded!");
             return true;
         }
 
@@ -281,7 +281,7 @@ public class LagerCommand implements CommandExecutor, TabCompleter {
     }
 
     private void msg(CommandSender sender, String text) {
-        sender.sendMessage("§6[niktrick-storage] " + text);
+        sender.sendMessage("§6[NT-storage] " + text);
     }
 
     @Override
